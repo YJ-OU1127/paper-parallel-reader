@@ -13,7 +13,7 @@ from docx.shared import Pt
 
 
 APP_NAME = "Paper Parallel Reader"
-APP_VERSION = "1.5.0-glossary-light"
+APP_VERSION = "1.5.3-sidebar-progress-tooltip"
 
 STATUS_OPTIONS = ["未確認", "確認済み", "要修正", "修正済み"]
 GLOSSARY_CATEGORIES = ["専門用語", "理論概念", "方法", "固有名詞", "その他"]
@@ -133,25 +133,119 @@ section[data-testid="stSidebar"] {
   background: linear-gradient(180deg, #f8fbff 0%, #f2fbf5 100%);
 }
 
-.ppr-progress-rail {
-  position: fixed;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 10px;
-  z-index: 999999;
+.ppr-progress-card {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 14px 14px;
+  box-shadow: 0 10px 24px rgba(15,23,42,.05);
+}
+.ppr-progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.ppr-progress-title {
+  font-weight: 900;
+  color: var(--deep-blue);
+}
+.ppr-progress-percent {
+  font-weight: 900;
+  color: var(--main-green);
+  font-size: 1.08rem;
+}
+.ppr-progress-body {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.ppr-progress-stack {
+  width: 72px;
+  height: 124px;
+  flex: 0 0 72px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  background: #e5e7eb;
   display: flex;
   flex-direction: column;
-  background: #e5e7eb;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.45), 0 8px 18px rgba(15,23,42,.08);
 }
 .ppr-progress-segment {
+  position: relative;
   width: 100%;
+  min-height: 9px;
+}
+.ppr-progress-segment:hover {
+  filter: brightness(.96);
 }
 .ppr-progress-unchecked { background: #cbd5e1; }
 .ppr-progress-confirmed { background: #60a5fa; }
 .ppr-progress-needsfix { background: #f59e0b; }
 .ppr-progress-revised { background: #22c55e; }
-</style>
+.ppr-progress-legend {
+  flex: 1;
+  min-width: 0;
+}
+.ppr-progress-legend-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .88rem;
+  margin: 6px 0;
+  color: #334155;
+  padding: 4px 6px;
+  border-radius: 10px;
+  cursor: help;
+}
+.ppr-progress-legend-row:hover {
+  background: #f1f5f9;
+}
+.ppr-progress-legend-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.ppr-progress-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(15,23,42,.12);
+  flex: 0 0 13px;
+}
+.ppr-progress-tip {
+  display: none;
+  position: absolute;
+  left: 6px;
+  bottom: calc(100% + 8px);
+  min-width: 190px;
+  max-width: 240px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  background: #0f172a;
+  color: white;
+  font-size: 12.5px;
+  line-height: 1.45;
+  z-index: 20;
+  box-shadow: 0 10px 24px rgba(15,23,42,.24);
+}
+.ppr-progress-legend-row:hover .ppr-progress-tip {
+  display: block;
+}
+.ppr-progress-tip b {
+  color: #bbf7d0;
+}
+.ppr-progress-total {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px dashed #dbe3ef;
+  font-size: .86rem;
+  color: var(--muted);
+}</style>
 """,
         unsafe_allow_html=True,
     )
@@ -493,38 +587,87 @@ def progress_counts(rows):
     }
 
 
-def render_vertical_progress_bar(rows):
+def render_sidebar_progress_card(rows):
     counts = progress_counts(rows)
     total = counts["total"]
     if total <= 0:
+        st.markdown(
+            """
+<div class="ppr-progress-card">
+  <div class="ppr-progress-head">
+    <span class="ppr-progress-title">進捗</span>
+    <span class="ppr-progress-percent">0%</span>
+  </div>
+  <div class="ppr-progress-total">本文ペアを作成すると、ここに進捗が表示されます。</div>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
         return
 
     segments = [
-        ("ppr-progress-revised", counts["revised"], "修正済み"),
-        ("ppr-progress-confirmed", counts["confirmed"], "確認済み"),
-        ("ppr-progress-needsfix", counts["needsfix"], "要修正"),
-        ("ppr-progress-unchecked", counts["unchecked"], "未確認"),
+        ("ppr-progress-unchecked", counts["unchecked"], "未確認", "まだ確認していないペア", "#cbd5e1"),
+        ("ppr-progress-needsfix", counts["needsfix"], "要修正", "あとで直す必要があるペア", "#f59e0b"),
+        ("ppr-progress-confirmed", counts["confirmed"], "確認済み", "内容確認が終わったペア", "#60a5fa"),
+        ("ppr-progress-revised", counts["revised"], "修正済み", "訳文を修正して完了したペア", "#22c55e"),
     ]
-    tooltip = (
-        f"全体: {counts['total']}\n"
-        f"未確認: {counts['unchecked']}\n"
-        f"確認済み: {counts['confirmed']}\n"
-        f"要修正: {counts['needsfix']}\n"
-        f"修正済み: {counts['revised']}\n"
-        f"完了率: {counts['percent']}%"
-    )
-    html_segments = []
-    for class_name, value, label in segments:
-        height = max(0.0, value / total * 100)
-        if value <= 0:
-            continue
-        html_segments.append(
-            f'<div class="ppr-progress-segment {class_name}" '
-            f'style="height:{height:.4f}%;" title="{html.escape(label)}: {value}"></div>'
+
+    bar_segments = []
+    legend_rows = []
+    for class_name, value, label, meaning, color in segments:
+        percent = (value / total * 100) if total else 0
+        if value > 0:
+            bar_segments.append(
+                f'<div class="ppr-progress-segment {class_name}" '
+                f'style="height:{percent:.4f}%;" '
+                f'title="{html.escape(label, quote=True)}：{value}件（全体の{percent:.1f}%）"></div>'
+            )
+        legend_rows.append(
+            f'''
+<div class="ppr-progress-legend-row">
+  <span class="ppr-progress-legend-left">
+    <span class="ppr-progress-dot" style="background:{color};"></span>
+    <span>{html.escape(label)}</span>
+  </span>
+  <span class="ppr-progress-tip">
+    <b>{html.escape(label)}</b><br>
+    {html.escape(meaning)}<br>
+    全体の {percent:.1f}% ／ {value}件
+  </span>
+</div>
+'''
         )
 
+    tooltip = (
+        f"全体：{counts['total']}件\n"
+        f"未確認：{counts['unchecked']}件\n"
+        f"要修正：{counts['needsfix']}件\n"
+        f"確認済み：{counts['confirmed']}件\n"
+        f"修正済み：{counts['revised']}件\n"
+        f"完了率：{counts['percent']}%"
+    )
+
     st.markdown(
-        f'<div class="ppr-progress-rail" title="{html.escape(tooltip, quote=True)}">{"".join(html_segments)}</div>',
+        f'''
+<div class="ppr-progress-card">
+  <div class="ppr-progress-head">
+    <span class="ppr-progress-title">進捗</span>
+    <span class="ppr-progress-percent">{counts['percent']}%</span>
+  </div>
+  <div class="ppr-progress-body">
+    <div class="ppr-progress-stack" title="{html.escape(tooltip, quote=True)}">
+      {''.join(bar_segments)}
+    </div>
+    <div class="ppr-progress-legend">
+      {''.join(legend_rows)}
+    </div>
+  </div>
+  <div class="ppr-progress-total">
+    全体 {counts['total']}件 ／ 完了 {counts['done']}件<br>
+    <span>凡例や棒にカーソルを合わせると、割合と件数を確認できます。</span>
+  </div>
+</div>
+''',
         unsafe_allow_html=True,
     )
 
@@ -576,17 +719,39 @@ def filter_rows(rows, selected_sections, selected_statuses, keyword, only_glossa
 # ハイライトHTML
 # ============================================================
 def make_glossary_tooltip(item):
-    parts = []
+    """用語辞典ハイライト用の小さなHTMLツールチップを作る。
+
+    以前は title / data-tip 属性に改行や <br> 相当の文字列を入れていたため、
+    環境によっては「<br>」がそのまま見えてしまうことがあった。
+    ここではツールチップ本体をHTML要素として持たせ、行ごとはCSSで縦並びにする。
+    """
+    rows = []
+    english = clean_phrase(item.get("english", ""))
     japanese = clean_phrase(item.get("japanese", ""))
     category = clean_phrase(item.get("category", ""))
     note = str(item.get("note", "")).strip()
+
+    if english:
+        rows.append(("英語", english))
     if japanese:
-        parts.append(f"訳：{japanese}")
+        rows.append(("日本語訳", japanese))
     if category:
-        parts.append(f"カテゴリ：{category}")
+        rows.append(("カテゴリ", category))
     if note:
-        parts.append(f"メモ：{note}")
-    return "\n".join(parts) if parts else "用語辞典"
+        rows.append(("メモ", note))
+
+    if not rows:
+        rows.append(("用語辞典", "登録済み"))
+
+    line_html = []
+    for label, value in rows:
+        line_html.append(
+            '<span class="tooltip-line">'
+            f'<span class="tooltip-label">{html.escape(label)}：</span>'
+            f'<span class="tooltip-value">{html.escape(value)}</span>'
+            '</span>'
+        )
+    return '<span class="glossary-tooltip" role="tooltip">' + ''.join(line_html) + '</span>'
 
 
 def highlight_english_terms(text, glossary):
@@ -624,11 +789,9 @@ def highlight_english_terms(text, glossary):
                 if matched_text.lower() == term.lower():
                     item = candidate
                     break
-        tooltip = make_glossary_tooltip(item or {})
-        escaped_tip = html.escape(tooltip, quote=True)
+        tooltip_html = make_glossary_tooltip(item or {})
         result.append(
-            f'<span class="hl-glossary" title="{escaped_tip}" data-tip="{escaped_tip}">'
-            f'{html.escape(matched_text)}</span>'
+            f'<span class="hl-glossary">{html.escape(matched_text)}{tooltip_html}</span>'
         )
         last = end
 
@@ -703,14 +866,14 @@ body {{
     cursor:help;
     font-weight: 700;
 }}
-.hl-glossary:hover::after {{
-    content: attr(data-tip);
+.glossary-tooltip {{
+    display:none;
     position:absolute;
     left:0;
     top:1.9em;
-    min-width:230px;
-    max-width:340px;
-    white-space:pre-line;
+    min-width:240px;
+    max-width:360px;
+    white-space:normal;
     background:#0f172a;
     color:#ffffff;
     padding:10px 12px;
@@ -719,7 +882,22 @@ body {{
     font-size:12.5px;
     line-height:1.55;
     font-weight:500;
-    z-index:100;
+    z-index:1000;
+    pointer-events:none;
+}}
+.hl-glossary:hover .glossary-tooltip {{
+    display:block;
+}}
+.tooltip-line {{
+    display:block;
+    margin:2px 0;
+}}
+.tooltip-label {{
+    font-weight:800;
+    color:#bbf7d0;
+}}
+.tooltip-value {{
+    overflow-wrap:anywhere;
 }}
 </style>
 </head>
@@ -958,20 +1136,7 @@ def render_sidebar():
     with st.sidebar:
         st.header("作業パネル")
 
-        st.markdown("### 進捗")
-        st.markdown(
-            f"""
-<div class="ppr-card">
-  <div><b>全体：</b>{counts['total']}</div>
-  <div><b>未確認：</b>{counts['unchecked']}</div>
-  <div><b>確認済み：</b>{counts['confirmed']}</div>
-  <div><b>要修正：</b>{counts['needsfix']}</div>
-  <div><b>修正済み：</b>{counts['revised']}</div>
-  <div style="margin-top:8px;"><b>完了率：</b>{counts['percent']}%</div>
-</div>
-""",
-            unsafe_allow_html=True,
-        )
+        render_sidebar_progress_card(rows)
 
         st.download_button(
             "JSONを保存",
@@ -1404,8 +1569,6 @@ def render_export_page():
 inject_style()
 init_state()
 cleanup_glossary()
-render_vertical_progress_bar(st.session_state.get("rows", []))
-
 st.markdown(
     f"""
 <div class="ppr-hero">

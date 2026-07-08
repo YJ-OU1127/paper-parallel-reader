@@ -658,13 +658,6 @@ def render_sidebar_progress_card(rows):
             "value": counts["confirmed"],
             "label": "確認済み",
             "meaning": "確認済みの割合",
-            "color": "#6078A8",
-        },
-        {
-            "key": "revised",
-            "value": counts["revised"],
-            "label": "修正済み",
-            "meaning": "修正済みの割合",
             "color": "#2E8B7D",
         },
     ]

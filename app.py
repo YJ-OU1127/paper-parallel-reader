@@ -13,7 +13,7 @@ from docx.shared import Pt
 
 
 APP_NAME = "Paper Parallel Reader"
-APP_VERSION = "1.5.6-tall-progress-graph"
+APP_VERSION = "1.5.7-designer-colors-focus-timer"
 
 STATUS_OPTIONS = ["未確認", "確認済み", "要修正", "修正済み"]
 GLOSSARY_CATEGORIES = ["専門用語", "理論概念", "方法", "固有名詞", "その他"]
@@ -37,19 +37,23 @@ def inject_style():
         """
 <style>
 :root {
-  --main-blue: #334f63;
-  --deep-blue: #17212b;
-  --soft-blue: #edf2f4;
-  --main-green: #2f7d68;
-  --soft-green: #edf7f2;
-  --paper: #faf8f3;
-  --ink: #1f2933;
-  --muted: #6b7280;
-  --line: #e3ded4;
-  --ppr-unchecked: #d7d2c8;
-  --ppr-needsfix: #c68245;
-  --ppr-confirmed: #4f6f88;
-  --ppr-revised: #2f7d68;
+  --main-blue: #5A6F97;
+  --deep-blue: #25243D;
+  --soft-blue: #EEF2F7;
+  --main-green: #2E8B7D;
+  --soft-green: #EEF7F3;
+  --paper: #FCF7EE;
+  --ink: #26272F;
+  --muted: #756F68;
+  --line: #E8DCCB;
+  --rose: #C46A6A;
+  --apricot: #E7A76D;
+  --sand: #F3E6C8;
+  --lavender: #C8BEDD;
+  --ppr-unchecked: #D8CFC1;
+  --ppr-needsfix: #D67A59;
+  --ppr-confirmed: #6078A8;
+  --ppr-revised: #2E8B7D;
 }
 
 .block-container {
@@ -57,12 +61,20 @@ def inject_style():
   padding-bottom: 3rem;
 }
 
+.stApp {
+  background:
+    radial-gradient(circle at 74% 0%, rgba(200,190,221,.23) 0, rgba(200,190,221,0) 28%),
+    linear-gradient(180deg, #FFFCF7 0%, #F9F5EC 100%);
+}
+
 .ppr-hero {
-  background: linear-gradient(135deg, #18222d 0%, #2f4658 58%, #48685f 100%);
-  color: white;
-  border-radius: 22px;
-  padding: 22px 26px;
-  box-shadow: 0 14px 34px rgba(31, 41, 51, .22);
+  background:
+    radial-gradient(circle at 92% 10%, rgba(231, 167, 109, .38) 0, rgba(231, 167, 109, 0) 30%),
+    linear-gradient(135deg, #25243D 0%, #4E536C 52%, #B07368 100%);
+  color: #FFF9EF;
+  border-radius: 24px;
+  padding: 24px 28px;
+  box-shadow: 0 18px 42px rgba(45, 36, 36, .20);
   margin-bottom: 18px;
 }
 .ppr-hero h1 {
@@ -72,25 +84,25 @@ def inject_style():
 }
 .ppr-hero p {
   margin: 0;
-  color: rgba(255,255,255,.88);
+  color: rgba(255,249,239,.88);
   font-size: .98rem;
 }
 .ppr-badge {
   display:inline-block;
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(255,255,255,.14);
-  border: 1px solid rgba(255,255,255,.24);
+  background: rgba(255,249,239,.14);
+  border: 1px solid rgba(255,249,239,.28);
   margin-right: 6px;
   margin-top: 10px;
   font-size: .82rem;
 }
 .ppr-card {
-  background: white;
+  background: rgba(255,253,247,.92);
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 20px;
   padding: 14px 16px;
-  box-shadow: 0 10px 24px rgba(15,23,42,.05);
+  box-shadow: 0 12px 28px rgba(45,36,36,.06);
 }
 .ppr-subtle {
   color: var(--muted);
@@ -105,10 +117,10 @@ def inject_style():
   margin: 2px 4px 2px 0;
   font-size: .82rem;
 }
-.ppr-chip-blue { background: var(--soft-blue); border-color:#cfd8dc; color:#334f63; }
-.ppr-chip-green { background: var(--soft-green); border-color:#c7ddd3; color:#2f7d68; }
-.ppr-chip-yellow { background:#f7efe1; border-color:#e5c79c; color:#8a5a2b; }
-.ppr-chip-red { background:#f4e5e0; border-color:#e5b4a7; color:#8f3f2d; }
+.ppr-chip-blue { background: #EEF2F7; border-color:#D6DDEA; color:#4E6388; }
+.ppr-chip-green { background: #EEF7F3; border-color:#C8E1D7; color:#2E8B7D; }
+.ppr-chip-yellow { background:#FFF1D7; border-color:#EBC78E; color:#95603A; }
+.ppr-chip-red { background:#F8E8E2; border-color:#E6B5A4; color:#A14F44; }
 
 [data-testid="stMetricValue"] { color: var(--deep-blue); }
 
@@ -128,13 +140,23 @@ def inject_style():
 
 div.stButton > button:first-child,
 div.stDownloadButton > button:first-child {
-  border-radius: 12px;
-  border: 1px solid #bcd1ee;
-  font-weight: 700;
+  border-radius: 13px;
+  border: 1px solid #D9C8B8;
+  font-weight: 750;
+  background: rgba(255,253,247,.72);
+  color: var(--ink);
+}
+div.stButton > button:first-child:hover,
+div.stDownloadButton > button:first-child:hover {
+  border-color: #C46A6A;
+  color: #8C4B4B;
+  background: #FFF9F4;
 }
 
 section[data-testid="stSidebar"] {
-  background: linear-gradient(180deg, #fbfaf7 0%, #f3f0e8 100%);
+  background:
+    radial-gradient(circle at 20% 4%, rgba(231,167,109,.18) 0, rgba(231,167,109,0) 34%),
+    linear-gradient(180deg, #FBF7EF 0%, #F3EFE6 100%);
 }
 
 .ppr-progress-card {
@@ -174,7 +196,7 @@ section[data-testid="stSidebar"] {
   display: flex;
   flex-direction: column;
   border-radius: 18px;
-  background: #eee9df;
+  background: #EDE5D8;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.58), 0 8px 18px rgba(31,41,51,.10);
   overflow: visible;
 }
@@ -596,28 +618,28 @@ def render_sidebar_progress_card(rows):
             "value": counts["unchecked"],
             "label": "未確認",
             "meaning": "未確認の割合",
-            "color": "#d6d0c4",
+            "color": "#D8CFC1",
         },
         {
             "key": "needsfix",
             "value": counts["needsfix"],
             "label": "要修正",
             "meaning": "要修正の割合",
-            "color": "#b87855",
+            "color": "#D67A59",
         },
         {
             "key": "confirmed",
             "value": counts["confirmed"],
             "label": "確認済み",
             "meaning": "確認済みの割合",
-            "color": "#5f7487",
+            "color": "#6078A8",
         },
         {
             "key": "revised",
             "value": counts["revised"],
             "label": "修正済み",
             "meaning": "修正済みの割合",
-            "color": "#2f6f5e",
+            "color": "#2E8B7D",
         },
     ]
 
@@ -680,7 +702,7 @@ def render_sidebar_progress_card(rows):
     padding: 0;
     background: transparent;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    color: #17212b;
+    color: #26272F;
   }}
   .card {{
     box-sizing: border-box;
@@ -689,8 +711,8 @@ def render_sidebar_progress_card(rows):
     padding: 14px 14px 18px;
     border: 1px solid #e3ded4;
     border-radius: 18px;
-    background: rgba(255,255,255,.90);
-    box-shadow: 0 10px 24px rgba(31,41,51,.06);
+    background: rgba(255,253,247,.94);
+    box-shadow: 0 12px 26px rgba(45,36,36,.07);
     overflow: visible;
   }}
   .head {{
@@ -704,12 +726,12 @@ def render_sidebar_progress_card(rows):
     font-size: 15px;
     font-weight: 900;
     letter-spacing: .02em;
-    color: #17212b;
+    color: #25243D;
   }}
   .percent {{
     font-size: 18px;
     font-weight: 900;
-    color: #2f6f5e;
+    color: #2E8B7D;
     font-variant-numeric: tabular-nums;
   }}
   .bar-wrap {{
@@ -726,10 +748,10 @@ def render_sidebar_progress_card(rows):
     flex-direction: column;
     border-radius: 20px;
     overflow: visible;
-    background: #eee9df;
+    background: #EDE5D8;
     box-shadow:
       inset 0 0 0 1px rgba(255,255,255,.64),
-      0 10px 22px rgba(31,41,51,.12);
+      0 10px 22px rgba(45,36,36,.13);
   }}
   .bar::before {{
     content: "";
@@ -752,7 +774,7 @@ def render_sidebar_progress_card(rows):
   .seg:only-child {{ border-radius: 20px; }}
   .seg.empty {{
     height: 100%;
-    background: #eee9df;
+    background: #EDE5D8;
     border-radius: 20px;
   }}
   .seg:hover {{
@@ -769,7 +791,7 @@ def render_sidebar_progress_card(rows):
     width: 188px;
     padding: 9px 11px;
     border-radius: 12px;
-    background: rgba(23, 33, 43, .96);
+    background: rgba(37, 36, 61, .96);
     color: #fffdf7;
     font-size: 12px;
     line-height: 1.45;
@@ -1718,22 +1740,188 @@ def render_export_page():
     st.caption("JSON保存は左の作業パネルからいつでもできます。")
 
 
+
+# ============================================================
+# 集中タイマー
+# ============================================================
+def render_focus_timer():
+    """右上に置く軽量タイマー。Streamlitの再実行を起こさないよう、JSだけで動かす。"""
+    timer_html = """
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #25243D;
+  }
+  .timer-card {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 142px;
+    padding: 16px 14px 14px;
+    border-radius: 24px;
+    border: 1px solid rgba(232, 220, 203, .92);
+    background:
+      radial-gradient(circle at 86% 8%, rgba(231,167,109,.22) 0, rgba(231,167,109,0) 34%),
+      rgba(255,253,247,.92);
+    box-shadow: 0 16px 34px rgba(45,36,36,.10);
+  }
+  .timer-label {
+    font-size: 12px;
+    letter-spacing: .08em;
+    font-weight: 850;
+    color: #756F68;
+    margin-bottom: 6px;
+  }
+  .timer-time {
+    font-size: 30px;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: .02em;
+    color: #25243D;
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 13px;
+  }
+  .timer-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+  }
+  button {
+    appearance: none;
+    border: 1px solid #DDCBBB;
+    border-radius: 12px;
+    padding: 8px 0;
+    font-size: 11px;
+    font-weight: 850;
+    color: #3A3447;
+    background: #FFF9F1;
+    cursor: pointer;
+    transition: transform .12s ease, border-color .12s ease, background .12s ease;
+  }
+  button:hover {
+    transform: translateY(-1px);
+    border-color: #C46A6A;
+    background: #FFF3EA;
+  }
+  button.primary {
+    color: #FFF9EF;
+    border-color: #2E8B7D;
+    background: #2E8B7D;
+  }
+  button.primary:hover {
+    background: #26786C;
+    border-color: #26786C;
+  }
+</style>
+</head>
+<body>
+  <div class="timer-card">
+    <div class="timer-label">FOCUS</div>
+    <div id="time" class="timer-time">00:00</div>
+    <div class="timer-actions">
+      <button id="start" class="primary">Start</button>
+      <button id="stop">Stop</button>
+      <button id="reset">Reset</button>
+    </div>
+  </div>
+<script>
+(function(){
+  const STORAGE_KEY = "ppr_focus_timer_v1";
+  const timeEl = document.getElementById("time");
+  const startBtn = document.getElementById("start");
+  const stopBtn = document.getElementById("stop");
+  const resetBtn = document.getElementById("reset");
+
+  function loadState() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      return {
+        running: Boolean(saved.running),
+        startedAt: Number(saved.startedAt || Date.now()),
+        elapsed: Number(saved.elapsed || 0)
+      };
+    } catch(e) {
+      return { running: false, startedAt: Date.now(), elapsed: 0 };
+    }
+  }
+
+  let state = loadState();
+
+  function saveState() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function currentElapsed() {
+    return state.running ? Math.max(0, Date.now() - state.startedAt) : Math.max(0, state.elapsed);
+  }
+
+  function render() {
+    const totalSeconds = Math.floor(currentElapsed() / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    timeEl.textContent = String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0");
+    startBtn.textContent = state.running ? "Running" : "Start";
+  }
+
+  startBtn.addEventListener("click", function(){
+    if (!state.running) {
+      state.startedAt = Date.now() - state.elapsed;
+      state.running = true;
+      saveState();
+      render();
+    }
+  });
+
+  stopBtn.addEventListener("click", function(){
+    if (state.running) {
+      state.elapsed = currentElapsed();
+      state.running = false;
+      saveState();
+      render();
+    }
+  });
+
+  resetBtn.addEventListener("click", function(){
+    state = { running: false, startedAt: Date.now(), elapsed: 0 };
+    saveState();
+    render();
+  });
+
+  render();
+  setInterval(render, 250);
+})();
+</script>
+</body>
+</html>
+"""
+    components.html(timer_html, height=154, scrolling=False)
+
 # ============================================================
 # アプリ本体
 # ============================================================
 inject_style()
 init_state()
 cleanup_glossary()
-st.markdown(
-    f"""
+header_left, header_right = st.columns([5.4, 1.25], gap="medium")
+with header_left:
+    st.markdown(
+        f"""
 <div class="ppr-hero">
   <h1>Paper Parallel Reader</h1>
   <p>用語辞典を中心に、論文の英文と和訳を軽く確認・修正するローカルエディタ</p>
   <span class="ppr-badge">Version: {APP_VERSION}</span>
 </div>
 """,
-    unsafe_allow_html=True,
-)
+        unsafe_allow_html=True,
+    )
+with header_right:
+    render_focus_timer()
 
 render_sidebar()
 render_input_area()

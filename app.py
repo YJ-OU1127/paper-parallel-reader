@@ -13,7 +13,7 @@ from docx.shared import Pt
 
 
 APP_NAME = "Paper Parallel Reader"
-APP_VERSION = "1.5.5-progress-graph-fix"
+APP_VERSION = "1.5.6-tall-progress-graph"
 
 STATUS_OPTIONS = ["未確認", "確認済み", "要修正", "修正済み"]
 GLOSSARY_CATEGORIES = ["専門用語", "理論概念", "方法", "固有名詞", "その他"]
@@ -584,32 +584,33 @@ def render_sidebar_progress_card(rows):
     # components.html の小さな iframe 内で完結させる。
     counts = progress_counts(rows)
     total = counts["total"]
+    bar_height_px = 318
+    min_visible_px = 8
 
     def pct(value):
         return (value / total * 100) if total else 0.0
 
-    # 上から順に積む。表示テキストは出さず、hover 時だけ情報を出す。
     segments = [
         {
             "key": "unchecked",
             "value": counts["unchecked"],
             "label": "未確認",
             "meaning": "未確認の割合",
-            "color": "#d8d2c6",
+            "color": "#d6d0c4",
         },
         {
             "key": "needsfix",
             "value": counts["needsfix"],
             "label": "要修正",
             "meaning": "要修正の割合",
-            "color": "#b8793b",
+            "color": "#b87855",
         },
         {
             "key": "confirmed",
             "value": counts["confirmed"],
             "label": "確認済み",
             "meaning": "確認済みの割合",
-            "color": "#566f82",
+            "color": "#5f7487",
         },
         {
             "key": "revised",
@@ -620,20 +621,49 @@ def render_sidebar_progress_card(rows):
         },
     ]
 
+    # 実際の割合が小さい状態でも、色の層が消えないように表示用の高さだけ最小値を持たせる。
+    # tooltip の割合・実数は実データをそのまま出す。
+    positive_segments = [item for item in segments if int(item["value"]) > 0]
+    raw_heights = []
+    for item in positive_segments:
+        raw_px = bar_height_px * pct(int(item["value"])) / 100
+        raw_heights.append(max(raw_px, float(min_visible_px)))
+
+    overflow = sum(raw_heights) - bar_height_px
+    if overflow > 0:
+        reducible = [max(0.0, h - min_visible_px) for h in raw_heights]
+        total_reducible = sum(reducible)
+        if total_reducible > 0:
+            raw_heights = [
+                h - overflow * (r / total_reducible)
+                for h, r in zip(raw_heights, reducible)
+            ]
+        else:
+            raw_heights = [bar_height_px / len(raw_heights)] * len(raw_heights)
+
+    # 小数丸めで最後に隙間が出ないよう、最後の層だけ残り高さにする。
+    visual_heights = []
+    used = 0.0
+    for idx, h in enumerate(raw_heights):
+        if idx == len(raw_heights) - 1:
+            final_h = max(1.0, bar_height_px - used)
+        else:
+            final_h = max(1.0, h)
+            used += final_h
+        visual_heights.append(final_h)
+
     segment_html = []
     if total <= 0:
-        segment_html.append('<div class="seg empty" title="データなし"></div>')
+        segment_html.append(f'<div class="seg empty" style="height:{bar_height_px}px" title="データなし"></div>')
     else:
-        for item in segments:
+        for item, visual_px in zip(positive_segments, visual_heights):
             value = int(item["value"])
-            if value <= 0:
-                continue
             percent = pct(value)
             tooltip = f'{item["label"]}\n{item["meaning"]}\n全体の {percent:.1f}% ／ {value}件'
             segment_html.append(
                 '<div '
                 f'class="seg {item["key"]}" '
-                f'style="height:{percent:.6f}%; background:{item["color"]};" '
+                f'style="height:{visual_px:.3f}px; background:{item["color"]};" '
                 f'title="{html.escape(tooltip, quote=True)}" '
                 f'data-tip="{html.escape(tooltip, quote=True)}">'
                 '</div>'
@@ -655,8 +685,8 @@ def render_sidebar_progress_card(rows):
   .card {{
     box-sizing: border-box;
     width: 100%;
-    min-height: 262px;
-    padding: 14px 14px 16px;
+    min-height: 390px;
+    padding: 14px 14px 18px;
     border: 1px solid #e3ded4;
     border-radius: 18px;
     background: rgba(255,255,255,.90);
@@ -668,7 +698,7 @@ def render_sidebar_progress_card(rows):
     align-items: baseline;
     justify-content: space-between;
     gap: 8px;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
   }}
   .title {{
     font-size: 15px;
@@ -690,30 +720,44 @@ def render_sidebar_progress_card(rows):
   }}
   .bar {{
     position: relative;
-    width: 92px;
-    height: 192px;
+    width: 96px;
+    height: {bar_height_px}px;
     display: flex;
     flex-direction: column;
-    border-radius: 18px;
+    border-radius: 20px;
     overflow: visible;
     background: #eee9df;
     box-shadow:
       inset 0 0 0 1px rgba(255,255,255,.64),
       0 10px 22px rgba(31,41,51,.12);
   }}
+  .bar::before {{
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 20px;
+    box-shadow: inset 0 0 0 1px rgba(24,33,43,.08);
+    pointer-events: none;
+    z-index: 3;
+  }}
   .seg {{
     position: relative;
     width: 100%;
     flex: 0 0 auto;
     cursor: help;
-    min-height: 0;
+    min-height: 1px;
   }}
+  .seg:first-child {{ border-radius: 20px 20px 0 0; }}
+  .seg:last-child {{ border-radius: 0 0 20px 20px; }}
+  .seg:only-child {{ border-radius: 20px; }}
   .seg.empty {{
     height: 100%;
     background: #eee9df;
+    border-radius: 20px;
   }}
   .seg:hover {{
     filter: brightness(.96) saturate(1.08);
+    z-index: 5;
   }}
   .seg:hover::after {{
     content: attr(data-tip);
@@ -722,7 +766,7 @@ def render_sidebar_progress_card(rows):
     top: 52%;
     transform: translate(-50%, -50%);
     box-sizing: border-box;
-    width: 186px;
+    width: 188px;
     padding: 9px 11px;
     border-radius: 12px;
     background: rgba(23, 33, 43, .96);
@@ -753,7 +797,7 @@ def render_sidebar_progress_card(rows):
 </body>
 </html>
 """
-    components.html(progress_html, height=274, scrolling=False)
+    components.html(progress_html, height=404, scrolling=False)
 
 def overview_dataframe(rows):
     return pd.DataFrame(

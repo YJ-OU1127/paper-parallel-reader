@@ -13,7 +13,7 @@ from docx.shared import Pt
 
 
 APP_NAME = "Paper Parallel Reader"
-APP_VERSION = "1.5.7-designer-colors-focus-timer"
+APP_VERSION = "1.5.8-sidebar-timer-sync-editor"
 
 STATUS_OPTIONS = ["未確認", "確認済み", "要修正", "修正済み"]
 GLOSSARY_CATEGORIES = ["専門用語", "理論概念", "方法", "固有名詞", "その他"]
@@ -25,6 +25,7 @@ WORD_EXPORT_OPTIONS = [
 ]
 
 DEFAULT_VIEWER_HEIGHT = 560
+READ_EDITOR_HEIGHT = 620
 
 st.set_page_config(page_title=APP_NAME, layout="wide")
 
@@ -1067,6 +1068,192 @@ body {{
 """
 
 
+def build_english_highlight_html(row, glossary, height=READ_EDITOR_HEIGHT):
+    en_html = highlight_english_terms(row.get("英文", ""), glossary)
+    glossary_hits = sum(
+        1
+        for item in glossary
+        if clean_phrase(item.get("english", ""))
+        and re.search(make_term_pattern(item.get("english", "")), str(row.get("英文", "")), flags=re.IGNORECASE)
+    )
+    return f"""
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+body {{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    color:#26272F;
+    background:transparent;
+}}
+.pane {{
+    box-sizing:border-box;
+    height:{height}px;
+    border:1px solid #E8DCCB;
+    border-radius:18px;
+    padding:16px 18px;
+    overflow-y:auto;
+    line-height:1.86;
+    font-size:15.5px;
+    background:linear-gradient(180deg,#FFFDF7 0%,#FBF7EF 100%);
+    box-shadow:0 10px 24px rgba(45,36,36,.05);
+}}
+.pane h3 {{
+    position:sticky;
+    top:-16px;
+    z-index:3;
+    background:#FFFDF7;
+    padding:12px 0 10px 0;
+    margin:-16px 0 12px 0;
+    border-bottom:1px solid #EFE3D1;
+    color:#25243D;
+    font-size:16px;
+}}
+.hit-count {{
+    display:inline-block;
+    margin-left:8px;
+    padding:3px 8px;
+    border-radius:999px;
+    background:#EEF7F3;
+    border:1px solid #C8E1D7;
+    color:#2E8B7D;
+    font-size:11px;
+    font-weight:800;
+}}
+.hl-glossary {{
+    position: relative;
+    background:#E7F1E7;
+    border-bottom:2px solid #6E9F84;
+    border-radius:5px;
+    padding:1px 4px;
+    cursor:help;
+    font-weight: 700;
+}}
+.glossary-tooltip {{
+    display:none;
+    position:absolute;
+    left:0;
+    top:1.9em;
+    min-width:240px;
+    max-width:360px;
+    white-space:normal;
+    background:#25243D;
+    color:#FFFDF7;
+    padding:10px 12px;
+    border-radius:12px;
+    box-shadow:0 10px 24px rgba(45,36,36,.22);
+    font-size:12.5px;
+    line-height:1.55;
+    font-weight:500;
+    z-index:1000;
+    pointer-events:none;
+}}
+.hl-glossary:hover .glossary-tooltip {{ display:block; }}
+.tooltip-line {{ display:block; margin:2px 0; }}
+.tooltip-label {{ font-weight:850; color:#CDE5D7; }}
+.tooltip-value {{ overflow-wrap:anywhere; }}
+</style>
+</head>
+<body>
+  <div id="en-pane" class="pane">
+    <h3>Original English <span class="hit-count">用語 {glossary_hits}</span></h3>
+    {en_html}
+  </div>
+<script>
+(function() {{
+  const pane = document.getElementById("en-pane");
+  let attached = false;
+  let lock = false;
+
+  function findJapaneseTextarea() {{
+    try {{
+      const doc = window.parent.document;
+      const areas = Array.from(doc.querySelectorAll("textarea"));
+      return areas.find(el => (el.getAttribute("aria-label") || "").trim() === "Japanese Translation");
+    }} catch (e) {{
+      return null;
+    }}
+  }}
+
+  function ratioOf(el) {{
+    const max = Math.max(1, el.scrollHeight - el.clientHeight);
+    return Math.max(0, Math.min(1, el.scrollTop / max));
+  }}
+
+  function setRatio(el, ratio) {{
+    const max = Math.max(0, el.scrollHeight - el.clientHeight);
+    el.scrollTop = max * ratio;
+  }}
+
+  function attachSync() {{
+    if (attached) return true;
+    const ja = findJapaneseTextarea();
+    if (!ja) return false;
+    attached = true;
+
+    pane.addEventListener("scroll", function() {{
+      if (lock) return;
+      lock = true;
+      setRatio(ja, ratioOf(pane));
+      window.setTimeout(() => {{ lock = false; }}, 24);
+    }}, {{ passive: true }});
+
+    ja.addEventListener("scroll", function() {{
+      if (lock) return;
+      lock = true;
+      setRatio(pane, ratioOf(ja));
+      window.setTimeout(() => {{ lock = false; }}, 24);
+    }}, {{ passive: true }});
+    return true;
+  }}
+
+  const timer = window.setInterval(function() {{
+    if (attachSync()) window.clearInterval(timer);
+  }}, 250);
+  attachSync();
+}})();
+</script>
+</body>
+</html>
+"""
+
+
+def inject_read_edit_helpers():
+    """読む・修正画面のボタン色を、表示テキストに合わせて軽く調整する。"""
+    helper_html = """
+<script>
+(function(){
+  function styleButtons(){
+    try {
+      const doc = window.parent.document;
+      doc.querySelectorAll('button').forEach(function(btn){
+        const text = (btn.innerText || '').trim();
+        if (text.includes('確認済みにして次へ')) {
+          btn.style.background = '#2E8B7D';
+          btn.style.borderColor = '#2E8B7D';
+          btn.style.color = '#FFFDF7';
+          btn.style.boxShadow = '0 10px 22px rgba(46,139,125,.18)';
+        }
+        if (text.includes('要修正にして次へ')) {
+          btn.style.background = '#B07368';
+          btn.style.borderColor = '#B07368';
+          btn.style.color = '#FFFDF7';
+          btn.style.boxShadow = '0 10px 22px rgba(176,115,104,.18)';
+        }
+      });
+    } catch(e) {}
+  }
+  styleButtons();
+  window.setTimeout(styleButtons, 300);
+  window.setTimeout(styleButtons, 900);
+})();
+</script>
+"""
+    components.html(helper_html, height=1, scrolling=False)
+
+
 # ============================================================
 # 前後文脈・編集操作
 # ============================================================
@@ -1286,6 +1473,7 @@ def render_sidebar():
         st.header("作業パネル")
 
         render_sidebar_progress_card(rows)
+        render_focus_timer()
 
         st.download_button(
             "JSONを保存",
@@ -1560,80 +1748,101 @@ def render_read_edit_page():
                 st.session_state["active_page"] = "一覧・選択"
                 st.rerun()
 
-    left, right = st.columns([1.2, 1])
+    translation_key = f"translation_editor_{selected_row['ID']}"
+    memo_key = f"memo_editor_{selected_row['ID']}"
+    if translation_key not in st.session_state:
+        st.session_state[translation_key] = get_final_translation(selected_row)
+    if memo_key not in st.session_state:
+        st.session_state[memo_key] = str(selected_row.get("メモ", ""))
+
+    left, right = st.columns([1, 1], gap="medium")
     with left:
         components.html(
-            build_highlight_html(selected_row, st.session_state.get("glossary", [])),
-            height=DEFAULT_VIEWER_HEIGHT + 76,
+            build_english_highlight_html(selected_row, st.session_state.get("glossary", []), height=READ_EDITOR_HEIGHT),
+            height=READ_EDITOR_HEIGHT + 8,
             scrolling=False,
         )
-        with st.expander("前後文脈を見る", expanded=False):
-            render_context(rows, selected_row["ID"], int(st.session_state.get("context_radius", 2)))
 
     with right:
-        with st.form(key=f"edit_form_{selected_row['ID']}"):
-            st.text_area("英文（確認用）", value=str(selected_row.get("英文", "")), height=160, disabled=True)
-            edited_translation = st.text_area("修正訳", value=get_final_translation(selected_row), height=230)
-            status = st.selectbox(
-                "状態",
-                STATUS_OPTIONS,
-                index=STATUS_OPTIONS.index(normalize_status(selected_row.get("状態"))),
-            )
-            memo = st.text_area("メモ", value=str(selected_row.get("メモ", "")), height=80)
-            restore = st.checkbox("原訳に戻す")
+        st.text_area(
+            "Japanese Translation",
+            key=translation_key,
+            height=READ_EDITOR_HEIGHT,
+            help="ここに直接修正訳を書き込めます。英語欄とスクロール位置が同期します。",
+        )
 
-            save_only = st.form_submit_button("このペアを保存")
-            confirm_and_next = st.form_submit_button("確認済みにして次へ", type="primary")
-            revise_and_next = st.form_submit_button("修正済みにして次へ")
+    with st.expander("前後文脈を見る", expanded=False):
+        render_context(rows, selected_row["ID"], int(st.session_state.get("context_radius", 2)))
 
-        if save_only or confirm_and_next or revise_and_next:
-            save_status = status
-            if confirm_and_next:
-                save_status = "確認済み"
-            elif revise_and_next:
-                save_status = "修正済み"
+    st.text_area("メモ", key=memo_key, height=82)
 
-            ok = save_row(selected_row["ID"], edited_translation, save_status, memo, restore)
-            if ok:
-                if confirm_and_next or revise_and_next:
-                    st.session_state["selected_id"] = next_sequential_id(st.session_state["rows"], selected_row["ID"])
-                st.success("保存しました。")
+    action_save, action_confirm, action_fix = st.columns([1, 1.2, 1.2])
+    save_only = False
+    confirm_and_next = False
+    needsfix_and_next = False
+    with action_save:
+        save_only = st.button("このペアを保存", use_container_width=True)
+    with action_confirm:
+        confirm_and_next = st.button("確認済みにして次へ", type="primary", use_container_width=True)
+    with action_fix:
+        needsfix_and_next = st.button("要修正にして次へ", use_container_width=True)
+
+    inject_read_edit_helpers()
+
+    if save_only or confirm_and_next or needsfix_and_next:
+        save_status = normalize_status(selected_row.get("状態"))
+        if confirm_and_next:
+            save_status = "確認済み"
+        elif needsfix_and_next:
+            save_status = "要修正"
+
+        ok = save_row(
+            selected_row["ID"],
+            st.session_state.get(translation_key, ""),
+            save_status,
+            st.session_state.get(memo_key, ""),
+            False,
+        )
+        if ok:
+            if confirm_and_next or needsfix_and_next:
+                st.session_state["selected_id"] = next_sequential_id(st.session_state["rows"], selected_row["ID"])
+            st.success("保存しました。")
+            st.rerun()
+        else:
+            st.error("保存できませんでした。")
+
+    with st.expander("結合・削除・空ペア", expanded=False):
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            if st.button("空ペア追加", use_container_width=True):
+                st.session_state["rows"] = insert_empty_row_after(rows, selected_row["ID"])
+                st.session_state["selected_id"] = next_sequential_id(st.session_state["rows"], selected_row["ID"])
                 st.rerun()
-            else:
-                st.error("保存できませんでした。")
-
-        with st.expander("結合・削除・空ペア", expanded=False):
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                if st.button("空ペア追加", use_container_width=True):
-                    st.session_state["rows"] = insert_empty_row_after(rows, selected_row["ID"])
-                    st.session_state["selected_id"] = next_sequential_id(st.session_state["rows"], selected_row["ID"])
-                    st.rerun()
-            with c2:
-                if st.button("次の訳文を結合", disabled=(current_index is None or current_index >= len(rows) - 1), use_container_width=True):
-                    current = rows[current_index]
-                    next_row = rows[current_index + 1]
-                    current["原訳"] = "\n\n".join(
-                        [p for p in [str(current.get("原訳", "")).strip(), str(next_row.get("原訳", "")).strip()] if p]
-                    )
-                    current["修正訳"] = "\n\n".join(
-                        [p for p in [get_final_translation(current), get_final_translation(next_row)] if p]
-                    )
-                    current["状態"] = "修正済み"
-                    current["更新日時"] = now_string()
-                    del rows[current_index + 1]
-                    st.session_state["rows"] = renumber_rows(rows)
-                    st.success("次の訳文を結合しました。")
-                    st.rerun()
-            with c3:
-                if st.button("このペアを削除", disabled=(len(rows) <= 1), use_container_width=True):
-                    next_id = next_sequential_id(rows, selected_row["ID"])
-                    st.session_state["rows"] = delete_row_by_id(rows, selected_row["ID"])
-                    if st.session_state["rows"]:
-                        st.session_state["selected_id"] = next_id if get_row_by_id(st.session_state["rows"], next_id) else st.session_state["rows"][0]["ID"]
-                    else:
-                        st.session_state["selected_id"] = None
-                    st.rerun()
+        with c2:
+            if st.button("次の訳文を結合", disabled=(current_index is None or current_index >= len(rows) - 1), use_container_width=True):
+                current = rows[current_index]
+                next_row = rows[current_index + 1]
+                current["原訳"] = "\n\n".join(
+                    [p for p in [str(current.get("原訳", "")).strip(), str(next_row.get("原訳", "")).strip()] if p]
+                )
+                current["修正訳"] = "\n\n".join(
+                    [p for p in [get_final_translation(current), get_final_translation(next_row)] if p]
+                )
+                current["状態"] = "修正済み"
+                current["更新日時"] = now_string()
+                del rows[current_index + 1]
+                st.session_state["rows"] = renumber_rows(rows)
+                st.success("次の訳文を結合しました。")
+                st.rerun()
+        with c3:
+            if st.button("このペアを削除", disabled=(len(rows) <= 1), use_container_width=True):
+                next_id = next_sequential_id(rows, selected_row["ID"])
+                st.session_state["rows"] = delete_row_by_id(rows, selected_row["ID"])
+                if st.session_state["rows"]:
+                    st.session_state["selected_id"] = next_id if get_row_by_id(st.session_state["rows"], next_id) else st.session_state["rows"][0]["ID"]
+                else:
+                    st.session_state["selected_id"] = None
+                st.rerun()
 
 
 # ============================================================
@@ -1745,7 +1954,7 @@ def render_export_page():
 # 集中タイマー
 # ============================================================
 def render_focus_timer():
-    """右上に置く軽量タイマー。Streamlitの再実行を起こさないよう、JSだけで動かす。"""
+    """作業パネル内に置く軽量タイマー。Streamlitの再実行を起こさないよう、JSだけで動かす。"""
     timer_html = """
 <!doctype html>
 <html>
@@ -1762,30 +1971,36 @@ def render_focus_timer():
   .timer-card {
     box-sizing: border-box;
     width: 100%;
-    min-height: 142px;
-    padding: 16px 14px 14px;
-    border-radius: 24px;
-    border: 1px solid rgba(232, 220, 203, .92);
+    min-height: 126px;
+    margin: 8px 0 10px;
+    padding: 13px 13px 12px;
+    border-radius: 18px;
+    border: 1px solid rgba(232, 220, 203, .94);
     background:
-      radial-gradient(circle at 86% 8%, rgba(231,167,109,.22) 0, rgba(231,167,109,0) 34%),
-      rgba(255,253,247,.92);
-    box-shadow: 0 16px 34px rgba(45,36,36,.10);
+      radial-gradient(circle at 84% 0%, rgba(200,190,221,.24) 0, rgba(200,190,221,0) 36%),
+      rgba(255,253,247,.94);
+    box-shadow: 0 10px 24px rgba(45,36,36,.07);
+  }
+  .timer-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
   }
   .timer-label {
-    font-size: 12px;
-    letter-spacing: .08em;
-    font-weight: 850;
-    color: #756F68;
-    margin-bottom: 6px;
-  }
-  .timer-time {
-    font-size: 30px;
-    line-height: 1;
+    font-size: 13px;
     font-weight: 900;
     letter-spacing: .02em;
     color: #25243D;
+  }
+  .timer-time {
+    font-size: 25px;
+    line-height: 1;
+    font-weight: 920;
+    letter-spacing: .02em;
+    color: #2E8B7D;
     font-variant-numeric: tabular-nums;
-    margin-bottom: 13px;
   }
   .timer-actions {
     display: grid;
@@ -1806,7 +2021,7 @@ def render_focus_timer():
   }
   button:hover {
     transform: translateY(-1px);
-    border-color: #C46A6A;
+    border-color: #B07368;
     background: #FFF3EA;
   }
   button.primary {
@@ -1822,8 +2037,10 @@ def render_focus_timer():
 </head>
 <body>
   <div class="timer-card">
-    <div class="timer-label">FOCUS</div>
-    <div id="time" class="timer-time">00:00</div>
+    <div class="timer-head">
+      <div class="timer-label">集中タイマー</div>
+      <div id="time" class="timer-time">00:00</div>
+    </div>
     <div class="timer-actions">
       <button id="start" class="primary">Start</button>
       <button id="stop">Stop</button>
@@ -1900,7 +2117,7 @@ def render_focus_timer():
 </body>
 </html>
 """
-    components.html(timer_html, height=154, scrolling=False)
+    components.html(timer_html, height=140, scrolling=False)
 
 # ============================================================
 # アプリ本体
@@ -1908,20 +2125,16 @@ def render_focus_timer():
 inject_style()
 init_state()
 cleanup_glossary()
-header_left, header_right = st.columns([5.4, 1.25], gap="medium")
-with header_left:
-    st.markdown(
-        f"""
+st.markdown(
+    f"""
 <div class="ppr-hero">
   <h1>Paper Parallel Reader</h1>
   <p>用語辞典を中心に、論文の英文と和訳を軽く確認・修正するローカルエディタ</p>
   <span class="ppr-badge">Version: {APP_VERSION}</span>
 </div>
 """,
-        unsafe_allow_html=True,
-    )
-with header_right:
-    render_focus_timer()
+    unsafe_allow_html=True,
+)
 
 render_sidebar()
 render_input_area()

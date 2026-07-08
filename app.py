@@ -13,7 +13,7 @@ from docx.shared import Pt
 
 
 APP_NAME = "Paper Parallel Reader"
-APP_VERSION = "1.5.8-sidebar-timer-sync-editor"
+APP_VERSION = "1.5.9-translation-typography-match"
 
 STATUS_OPTIONS = ["未確認", "確認済み", "要修正", "修正済み"]
 GLOSSARY_CATEGORIES = ["専門用語", "理論概念", "方法", "固有名詞", "その他"]
@@ -259,6 +259,31 @@ section[data-testid="stSidebar"] {
   color: rgba(255,253,247,.86);
   font-variant-numeric: tabular-nums;
 }
+
+
+/* 読む・修正：Japanese Translation の編集欄を Original English に近づける */
+textarea[aria-label="Japanese Translation"] {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  font-size: 15.5px !important;
+  line-height: 1.86 !important;
+  letter-spacing: .01em !important;
+  color: #26272F !important;
+  background: linear-gradient(180deg,#FFFDF7 0%,#FBF7EF 100%) !important;
+  border: 1px solid #E8DCCB !important;
+  border-radius: 18px !important;
+  padding: 16px 18px !important;
+  box-shadow: 0 10px 24px rgba(45,36,36,.05) !important;
+}
+textarea[aria-label="Japanese Translation"]:focus {
+  border-color: #9A8FBD !important;
+  box-shadow: 0 0 0 3px rgba(154,143,189,.18), 0 10px 24px rgba(45,36,36,.05) !important;
+}
+label:has(+ div textarea[aria-label="Japanese Translation"]) {
+  color: #25243D !important;
+  font-size: 16px !important;
+  font-weight: 800 !important;
+}
+
 </style>
 """,
         unsafe_allow_html=True,

@@ -13,7 +13,7 @@ from docx.shared import Pt
 
 
 APP_NAME = "Paper Parallel Reader"
-APP_VERSION = "1.5.4-progress-selection-polish"
+APP_VERSION = "1.5.5-progress-graph-fix"
 
 STATUS_OPTIONS = ["未確認", "確認済み", "要修正", "修正済み"]
 GLOSSARY_CATEGORIES = ["専門用語", "理論概念", "方法", "固有名詞", "その他"]
@@ -579,62 +579,181 @@ def progress_counts(rows):
 
 
 def render_sidebar_progress_card(rows):
+    # サイドバー内に、軽量な縦向き進捗グラフを表示する。
+    # Streamlit の markdown HTML では div が崩れて閉じタグが文字として見える場合があるため、
+    # components.html の小さな iframe 内で完結させる。
     counts = progress_counts(rows)
     total = counts["total"]
-    if total <= 0:
-        st.markdown(
-            """
-<div class="ppr-progress-card">
-  <div class="ppr-progress-head">
-    <span class="ppr-progress-title">進捗</span>
-    <span class="ppr-progress-percent">0%</span>
-  </div>
-</div>
-""",
-            unsafe_allow_html=True,
-        )
-        return
 
+    def pct(value):
+        return (value / total * 100) if total else 0.0
+
+    # 上から順に積む。表示テキストは出さず、hover 時だけ情報を出す。
     segments = [
-        ("ppr-progress-unchecked", counts["unchecked"], "未確認", "未確認の割合"),
-        ("ppr-progress-needsfix", counts["needsfix"], "要修正", "要修正の割合"),
-        ("ppr-progress-confirmed", counts["confirmed"], "確認済み", "確認済みの割合"),
-        ("ppr-progress-revised", counts["revised"], "修正済み", "修正済みの割合"),
+        {
+            "key": "unchecked",
+            "value": counts["unchecked"],
+            "label": "未確認",
+            "meaning": "未確認の割合",
+            "color": "#d8d2c6",
+        },
+        {
+            "key": "needsfix",
+            "value": counts["needsfix"],
+            "label": "要修正",
+            "meaning": "要修正の割合",
+            "color": "#b8793b",
+        },
+        {
+            "key": "confirmed",
+            "value": counts["confirmed"],
+            "label": "確認済み",
+            "meaning": "確認済みの割合",
+            "color": "#566f82",
+        },
+        {
+            "key": "revised",
+            "value": counts["revised"],
+            "label": "修正済み",
+            "meaning": "修正済みの割合",
+            "color": "#2f6f5e",
+        },
     ]
 
-    bar_segments = []
-    for class_name, value, label, meaning in segments:
-        percent = (value / total * 100) if total else 0
-        if value <= 0:
-            continue
-        bar_segments.append(
-            f'''
-<div class="ppr-progress-segment {class_name}" style="height:{percent:.4f}%;" title="{html.escape(label, quote=True)}：全体の {percent:.1f}% ／ {value}件">
-  <span class="ppr-progress-tip">
-    <span class="ppr-progress-tip-label">{html.escape(label)}</span>
-    <span class="ppr-progress-tip-detail">{html.escape(meaning)}</span>
-    <span class="ppr-progress-tip-detail">全体の {percent:.1f}% ／ {value}件</span>
-  </span>
-</div>
-'''
-        )
+    segment_html = []
+    if total <= 0:
+        segment_html.append('<div class="seg empty" title="データなし"></div>')
+    else:
+        for item in segments:
+            value = int(item["value"])
+            if value <= 0:
+                continue
+            percent = pct(value)
+            tooltip = f'{item["label"]}\n{item["meaning"]}\n全体の {percent:.1f}% ／ {value}件'
+            segment_html.append(
+                '<div '
+                f'class="seg {item["key"]}" '
+                f'style="height:{percent:.6f}%; background:{item["color"]};" '
+                f'title="{html.escape(tooltip, quote=True)}" '
+                f'data-tip="{html.escape(tooltip, quote=True)}">'
+                '</div>'
+            )
 
-    st.markdown(
-        f'''
-<div class="ppr-progress-card">
-  <div class="ppr-progress-head">
-    <span class="ppr-progress-title">進捗</span>
-    <span class="ppr-progress-percent">{counts['percent']}%</span>
-  </div>
-  <div class="ppr-progress-body">
-    <div class="ppr-progress-stack">
-      {''.join(bar_segments)}
+    progress_html = f"""
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body {{
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #17212b;
+  }}
+  .card {{
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 262px;
+    padding: 14px 14px 16px;
+    border: 1px solid #e3ded4;
+    border-radius: 18px;
+    background: rgba(255,255,255,.90);
+    box-shadow: 0 10px 24px rgba(31,41,51,.06);
+    overflow: visible;
+  }}
+  .head {{
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+  }}
+  .title {{
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: .02em;
+    color: #17212b;
+  }}
+  .percent {{
+    font-size: 18px;
+    font-weight: 900;
+    color: #2f6f5e;
+    font-variant-numeric: tabular-nums;
+  }}
+  .bar-wrap {{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: visible;
+  }}
+  .bar {{
+    position: relative;
+    width: 92px;
+    height: 192px;
+    display: flex;
+    flex-direction: column;
+    border-radius: 18px;
+    overflow: visible;
+    background: #eee9df;
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,.64),
+      0 10px 22px rgba(31,41,51,.12);
+  }}
+  .seg {{
+    position: relative;
+    width: 100%;
+    flex: 0 0 auto;
+    cursor: help;
+    min-height: 0;
+  }}
+  .seg.empty {{
+    height: 100%;
+    background: #eee9df;
+  }}
+  .seg:hover {{
+    filter: brightness(.96) saturate(1.08);
+  }}
+  .seg:hover::after {{
+    content: attr(data-tip);
+    position: fixed;
+    left: 50%;
+    top: 52%;
+    transform: translate(-50%, -50%);
+    box-sizing: border-box;
+    width: 186px;
+    padding: 9px 11px;
+    border-radius: 12px;
+    background: rgba(23, 33, 43, .96);
+    color: #fffdf7;
+    font-size: 12px;
+    line-height: 1.45;
+    white-space: pre-line;
+    word-break: normal;
+    text-align: left;
+    box-shadow: 0 12px 26px rgba(31,41,51,.24);
+    z-index: 9999;
+    pointer-events: none;
+  }}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="head">
+      <span class="title">進捗</span>
+      <span class="percent">{counts['percent']}%</span>
+    </div>
+    <div class="bar-wrap">
+      <div class="bar" aria-label="進捗グラフ">
+        {''.join(segment_html)}
+      </div>
     </div>
   </div>
-</div>
-''',
-        unsafe_allow_html=True,
-    )
+</body>
+</html>
+"""
+    components.html(progress_html, height=274, scrolling=False)
 
 def overview_dataframe(rows):
     return pd.DataFrame(
@@ -1300,15 +1419,25 @@ def render_overview_page():
 
     choices = [int(row["ID"]) for row in page_rows]
     current_id = st.session_state.get("selected_id")
-    default_index = choices.index(current_id) if current_id in choices else 0
+    if current_id not in choices:
+        current_id = choices[0]
+        st.session_state["selected_id"] = current_id
+
+    # 表をクリックした選択を、この selectbox にも確実に反映させる。
+    selector_key = "read_pair_selector"
+    if st.session_state.get(selector_key) not in choices or st.session_state.get(selector_key) != current_id:
+        st.session_state[selector_key] = current_id
+
     selected_id = st.selectbox(
         "読むペアを選ぶ",
         choices,
-        index=default_index,
+        key=selector_key,
         format_func=lambda rid: f"ID {rid}: {truncate_text(get_row_by_id(rows, rid).get('英文', ''), 80)}",
     )
+    st.session_state["selected_id"] = int(selected_id)
+
     if st.button("選択して読む", type="primary"):
-        st.session_state["selected_id"] = selected_id
+        st.session_state["selected_id"] = int(selected_id)
         st.session_state["active_page"] = "読む・修正"
         st.rerun()
 

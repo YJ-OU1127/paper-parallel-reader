@@ -13,7 +13,7 @@ from docx.shared import Pt
 
 
 APP_NAME = "Paper Parallel Reader"
-APP_VERSION = "1.5.3-sidebar-progress-tooltip"
+APP_VERSION = "1.5.4-progress-selection-polish"
 
 STATUS_OPTIONS = ["未確認", "確認済み", "要修正", "修正済み"]
 GLOSSARY_CATEGORIES = ["専門用語", "理論概念", "方法", "固有名詞", "その他"]
@@ -37,15 +37,19 @@ def inject_style():
         """
 <style>
 :root {
-  --main-blue: #003f8e;
-  --deep-blue: #05285f;
-  --soft-blue: #eaf2ff;
-  --main-green: #16a34a;
-  --soft-green: #e8f8ee;
-  --paper: #f7f9fc;
-  --ink: #172033;
-  --muted: #64748b;
-  --line: #dbe3ef;
+  --main-blue: #334f63;
+  --deep-blue: #17212b;
+  --soft-blue: #edf2f4;
+  --main-green: #2f7d68;
+  --soft-green: #edf7f2;
+  --paper: #faf8f3;
+  --ink: #1f2933;
+  --muted: #6b7280;
+  --line: #e3ded4;
+  --ppr-unchecked: #d7d2c8;
+  --ppr-needsfix: #c68245;
+  --ppr-confirmed: #4f6f88;
+  --ppr-revised: #2f7d68;
 }
 
 .block-container {
@@ -54,11 +58,11 @@ def inject_style():
 }
 
 .ppr-hero {
-  background: linear-gradient(135deg, var(--deep-blue) 0%, var(--main-blue) 64%, #0d9488 100%);
+  background: linear-gradient(135deg, #18222d 0%, #2f4658 58%, #48685f 100%);
   color: white;
   border-radius: 22px;
   padding: 22px 26px;
-  box-shadow: 0 14px 34px rgba(0, 63, 142, .24);
+  box-shadow: 0 14px 34px rgba(31, 41, 51, .22);
   margin-bottom: 18px;
 }
 .ppr-hero h1 {
@@ -101,10 +105,10 @@ def inject_style():
   margin: 2px 4px 2px 0;
   font-size: .82rem;
 }
-.ppr-chip-blue { background: var(--soft-blue); border-color:#bfdbfe; color:#1d4ed8; }
-.ppr-chip-green { background: var(--soft-green); border-color:#bbf7d0; color:#15803d; }
-.ppr-chip-yellow { background:#fff7d6; border-color:#fde68a; color:#92400e; }
-.ppr-chip-red { background:#fee2e2; border-color:#fecaca; color:#b91c1c; }
+.ppr-chip-blue { background: var(--soft-blue); border-color:#cfd8dc; color:#334f63; }
+.ppr-chip-green { background: var(--soft-green); border-color:#c7ddd3; color:#2f7d68; }
+.ppr-chip-yellow { background:#f7efe1; border-color:#e5c79c; color:#8a5a2b; }
+.ppr-chip-red { background:#f4e5e0; border-color:#e5b4a7; color:#8f3f2d; }
 
 [data-testid="stMetricValue"] { color: var(--deep-blue); }
 
@@ -130,122 +134,109 @@ div.stDownloadButton > button:first-child {
 }
 
 section[data-testid="stSidebar"] {
-  background: linear-gradient(180deg, #f8fbff 0%, #f2fbf5 100%);
+  background: linear-gradient(180deg, #fbfaf7 0%, #f3f0e8 100%);
 }
 
 .ppr-progress-card {
-  background: #ffffff;
+  background: rgba(255,255,255,.88);
   border: 1px solid var(--line);
   border-radius: 18px;
-  padding: 14px 14px;
-  box-shadow: 0 10px 24px rgba(15,23,42,.05);
+  padding: 14px 14px 16px;
+  box-shadow: 0 10px 24px rgba(31,41,51,.06);
 }
 .ppr-progress-head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 .ppr-progress-title {
   font-weight: 900;
   color: var(--deep-blue);
+  letter-spacing: .02em;
 }
 .ppr-progress-percent {
   font-weight: 900;
-  color: var(--main-green);
-  font-size: 1.08rem;
+  color: var(--ppr-revised);
+  font-size: 1.12rem;
+  font-variant-numeric: tabular-nums;
 }
 .ppr-progress-body {
   display: flex;
-  gap: 14px;
+  justify-content: center;
   align-items: center;
 }
 .ppr-progress-stack {
-  width: 72px;
-  height: 124px;
-  flex: 0 0 72px;
-  border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid #cbd5e1;
-  background: #e5e7eb;
+  width: 112px;
+  height: 104px;
+  position: relative;
   display: flex;
   flex-direction: column;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.45), 0 8px 18px rgba(15,23,42,.08);
+  border-radius: 18px;
+  background: #eee9df;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.58), 0 8px 18px rgba(31,41,51,.10);
+  overflow: visible;
 }
 .ppr-progress-segment {
   position: relative;
   width: 100%;
-  min-height: 9px;
+  min-height: 4px;
+  cursor: help;
+  transition: filter .12s ease, transform .12s ease;
 }
 .ppr-progress-segment:hover {
-  filter: brightness(.96);
+  filter: brightness(.94) saturate(1.08);
+  z-index: 15;
 }
-.ppr-progress-unchecked { background: #cbd5e1; }
-.ppr-progress-confirmed { background: #60a5fa; }
-.ppr-progress-needsfix { background: #f59e0b; }
-.ppr-progress-revised { background: #22c55e; }
-.ppr-progress-legend {
-  flex: 1;
-  min-width: 0;
+.ppr-progress-segment:first-child {
+  border-radius: 18px 18px 0 0;
 }
-.ppr-progress-legend-row {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: .88rem;
-  margin: 6px 0;
-  color: #334155;
-  padding: 4px 6px;
-  border-radius: 10px;
-  cursor: help;
+.ppr-progress-segment:last-child {
+  border-radius: 0 0 18px 18px;
 }
-.ppr-progress-legend-row:hover {
-  background: #f1f5f9;
+.ppr-progress-segment:only-child {
+  border-radius: 18px;
 }
-.ppr-progress-legend-left {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-}
-.ppr-progress-dot {
-  width: 13px;
-  height: 13px;
-  border-radius: 999px;
-  border: 1px solid rgba(15,23,42,.12);
-  flex: 0 0 13px;
-}
+.ppr-progress-unchecked { background: var(--ppr-unchecked); }
+.ppr-progress-confirmed { background: var(--ppr-confirmed); }
+.ppr-progress-needsfix { background: var(--ppr-needsfix); }
+.ppr-progress-revised { background: var(--ppr-revised); }
 .ppr-progress-tip {
   display: none;
   position: absolute;
-  left: 6px;
-  bottom: calc(100% + 8px);
-  min-width: 190px;
-  max-width: 240px;
-  padding: 9px 10px;
-  border-radius: 12px;
-  background: #0f172a;
-  color: white;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: max-content;
+  min-width: 154px;
+  max-width: 190px;
+  padding: 9px 11px;
+  border-radius: 13px;
+  background: rgba(24,34,45,.96);
+  color: #fffdf7;
   font-size: 12.5px;
   line-height: 1.45;
-  z-index: 20;
-  box-shadow: 0 10px 24px rgba(15,23,42,.24);
+  z-index: 50;
+  box-shadow: 0 12px 26px rgba(31,41,51,.24);
+  pointer-events: none;
+  white-space: normal;
 }
-.ppr-progress-legend-row:hover .ppr-progress-tip {
+.ppr-progress-segment:hover .ppr-progress-tip {
   display: block;
 }
-.ppr-progress-tip b {
-  color: #bbf7d0;
+.ppr-progress-tip-label {
+  display: block;
+  font-weight: 900;
+  color: #f2eadb;
+  margin-bottom: 2px;
 }
-.ppr-progress-total {
-  margin-top: 10px;
-  padding-top: 9px;
-  border-top: 1px dashed #dbe3ef;
-  font-size: .86rem;
-  color: var(--muted);
-}</style>
+.ppr-progress-tip-detail {
+  display: block;
+  color: rgba(255,253,247,.86);
+  font-variant-numeric: tabular-nums;
+}
+</style>
 """,
         unsafe_allow_html=True,
     )
@@ -598,7 +589,6 @@ def render_sidebar_progress_card(rows):
     <span class="ppr-progress-title">進捗</span>
     <span class="ppr-progress-percent">0%</span>
   </div>
-  <div class="ppr-progress-total">本文ペアを作成すると、ここに進捗が表示されます。</div>
 </div>
 """,
             unsafe_allow_html=True,
@@ -606,46 +596,28 @@ def render_sidebar_progress_card(rows):
         return
 
     segments = [
-        ("ppr-progress-unchecked", counts["unchecked"], "未確認", "まだ確認していないペア", "#cbd5e1"),
-        ("ppr-progress-needsfix", counts["needsfix"], "要修正", "あとで直す必要があるペア", "#f59e0b"),
-        ("ppr-progress-confirmed", counts["confirmed"], "確認済み", "内容確認が終わったペア", "#60a5fa"),
-        ("ppr-progress-revised", counts["revised"], "修正済み", "訳文を修正して完了したペア", "#22c55e"),
+        ("ppr-progress-unchecked", counts["unchecked"], "未確認", "未確認の割合"),
+        ("ppr-progress-needsfix", counts["needsfix"], "要修正", "要修正の割合"),
+        ("ppr-progress-confirmed", counts["confirmed"], "確認済み", "確認済みの割合"),
+        ("ppr-progress-revised", counts["revised"], "修正済み", "修正済みの割合"),
     ]
 
     bar_segments = []
-    legend_rows = []
-    for class_name, value, label, meaning, color in segments:
+    for class_name, value, label, meaning in segments:
         percent = (value / total * 100) if total else 0
-        if value > 0:
-            bar_segments.append(
-                f'<div class="ppr-progress-segment {class_name}" '
-                f'style="height:{percent:.4f}%;" '
-                f'title="{html.escape(label, quote=True)}：{value}件（全体の{percent:.1f}%）"></div>'
-            )
-        legend_rows.append(
+        if value <= 0:
+            continue
+        bar_segments.append(
             f'''
-<div class="ppr-progress-legend-row">
-  <span class="ppr-progress-legend-left">
-    <span class="ppr-progress-dot" style="background:{color};"></span>
-    <span>{html.escape(label)}</span>
-  </span>
+<div class="ppr-progress-segment {class_name}" style="height:{percent:.4f}%;" title="{html.escape(label, quote=True)}：全体の {percent:.1f}% ／ {value}件">
   <span class="ppr-progress-tip">
-    <b>{html.escape(label)}</b><br>
-    {html.escape(meaning)}<br>
-    全体の {percent:.1f}% ／ {value}件
+    <span class="ppr-progress-tip-label">{html.escape(label)}</span>
+    <span class="ppr-progress-tip-detail">{html.escape(meaning)}</span>
+    <span class="ppr-progress-tip-detail">全体の {percent:.1f}% ／ {value}件</span>
   </span>
 </div>
 '''
         )
-
-    tooltip = (
-        f"全体：{counts['total']}件\n"
-        f"未確認：{counts['unchecked']}件\n"
-        f"要修正：{counts['needsfix']}件\n"
-        f"確認済み：{counts['confirmed']}件\n"
-        f"修正済み：{counts['revised']}件\n"
-        f"完了率：{counts['percent']}%"
-    )
 
     st.markdown(
         f'''
@@ -655,22 +627,14 @@ def render_sidebar_progress_card(rows):
     <span class="ppr-progress-percent">{counts['percent']}%</span>
   </div>
   <div class="ppr-progress-body">
-    <div class="ppr-progress-stack" title="{html.escape(tooltip, quote=True)}">
+    <div class="ppr-progress-stack">
       {''.join(bar_segments)}
     </div>
-    <div class="ppr-progress-legend">
-      {''.join(legend_rows)}
-    </div>
-  </div>
-  <div class="ppr-progress-total">
-    全体 {counts['total']}件 ／ 完了 {counts['done']}件<br>
-    <span>凡例や棒にカーソルを合わせると、割合と件数を確認できます。</span>
   </div>
 </div>
 ''',
         unsafe_allow_html=True,
     )
-
 
 def overview_dataframe(rows):
     return pd.DataFrame(
@@ -1314,7 +1278,25 @@ def render_overview_page():
     end = start + page_size
     page_rows = filtered[start:end]
 
-    st.dataframe(overview_dataframe(page_rows), use_container_width=True, hide_index=True)
+    overview_df = overview_dataframe(page_rows)
+    table_event = st.dataframe(
+        overview_df,
+        use_container_width=True,
+        hide_index=True,
+        on_select="rerun",
+        selection_mode="single-row",
+        key=f"overview_table_{int(page_number)}_{page_size}_{len(filtered)}",
+    )
+    selected_table_rows = []
+    if hasattr(table_event, "selection") and hasattr(table_event.selection, "rows"):
+        selected_table_rows = table_event.selection.rows
+    elif isinstance(table_event, dict):
+        selected_table_rows = table_event.get("selection", {}).get("rows", [])
+
+    if selected_table_rows:
+        picked_index = int(selected_table_rows[0])
+        if 0 <= picked_index < len(overview_df):
+            st.session_state["selected_id"] = int(overview_df.iloc[picked_index]["ID"])
 
     choices = [int(row["ID"]) for row in page_rows]
     current_id = st.session_state.get("selected_id")
@@ -1575,8 +1557,6 @@ st.markdown(
   <h1>Paper Parallel Reader</h1>
   <p>用語辞典を中心に、論文の英文と和訳を軽く確認・修正するローカルエディタ</p>
   <span class="ppr-badge">Version: {APP_VERSION}</span>
-  <span class="ppr-badge">Glossary Highlight</span>
-  <span class="ppr-badge">Lightweight</span>
 </div>
 """,
     unsafe_allow_html=True,
